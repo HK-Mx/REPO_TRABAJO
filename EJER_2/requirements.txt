@@ -1,0 +1,10 @@
+Flask
+sqlalchemy
+joblib
+numpy 
+pandas 
+datetime
+gunicorn 
+requests
+psycopg2-binary
+psycopg2

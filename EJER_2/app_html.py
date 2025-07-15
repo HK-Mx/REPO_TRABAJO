@@ -10,17 +10,17 @@ port = 5432
 user = "postgres"
 password = "postgres"
 protocolo = "postgresql"
-bbdd = "postgress"
+bbdd = "postgres"
 
 churro = f"{protocolo}://{user}:{password}@{host}:{port}/{bbdd}"
 engine = create_engine(churro)
 
+
 model = joblib.load("model.pkl")
 
 app = Flask(__name__)
-app.config["DEBUG"] = True
 
-HTML = """
+HTML_FORM = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -67,9 +67,12 @@ def home():
 
 @app.route('/predict', methods=['GET', 'POST'])
 def predict():
-    prediction_result_html = ""
+    if request.method == 'GET':
+        prediction_result_html = ""
+        return HTML_FORM.format(prediction_result=prediction_result_html)
 
-    if request.method == 'POST':
+    elif request.method == 'POST':
+        
         sepal_length = float(request.form["sepal_length"])
         sepal_width = float(request.form["sepal_width"])
         petal_length = float(request.form["petal_length"])
@@ -84,12 +87,15 @@ def predict():
         input_str = str(features[0].tolist())
         
         data_to_store = {
-            "fecha_prediccion": [fecha_predict],
-            "input_features": [input_str],
+            "fecha prediccion": [fecha_predict],
+            "input": [input_str],
             "prediccion": [predicted_species]
         }
         df = pd.DataFrame(data_to_store)
-        df.to_sql("postgress", con=engine, if_exists="append", index=False)
+        
+        with engine.connect() as connection:
+            df.to_sql("postgres", con=connection, if_exists="append", index=False)
+            connection.commit()
 
         prediction_result_html = f"""
         <div class="prediction-result">
@@ -102,15 +108,16 @@ def predict():
             <p><strong>Fecha de Predicción:</strong> {fecha_predict}</p>
         </div>
         """
-
-    return HTML.format(prediction_result=prediction_result_html)
+        return HTML_FORM.format(prediction_result=prediction_result_html)
 
 
 @app.route('/historial')
 def hist():
-    query = """ SELECT * FROM postgress"""
-    response = pd.read_sql(query, con=engine)
+    with engine.connect() as connection:
+        query = """ SELECT * FROM postgres"""
+        response = pd.read_sql(query, con=connection)
+    
     return jsonify(response.to_dict(orient="records"))
 
-if __name__ == '__main__':
-    app.run(debug=True)
+# if __name__ == '__main__': #para que el despliegue sepa que es un ejecutable y no un modulo
+app.run(host='0.0.0.0', port=5000, debug=True)
